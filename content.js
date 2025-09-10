@@ -62,17 +62,42 @@
   }
   const shadow = host.attachShadow({ mode: 'open' });
 
-  // Load styles into Shadow DOM from content.css
+  // Load styles into Shadow DOM (robust against page CSP):
+  // 1) adoptedStyleSheets (preferred), 2) <style> with text, 3) <link rel="stylesheet"> as last resort.
   (async () => {
+    const url = chrome.runtime.getURL('content.css');
+    let cssText = '';
     try {
-      const url = chrome.runtime.getURL('content.css');
-      const cssText = await fetch(url).then((r) => r.text());
-      const style = document.createElement('style');
-      style.textContent = cssText;
-      shadow.appendChild(style);
-    } catch (err) {
-      // Silent failure; UI still renders with minimal inline styles
+      cssText = await fetch(url).then((r) => r.text());
+    } catch (_) {}
+
+    // Try adoptedStyleSheets
+    try {
+      if ('adoptedStyleSheets' in Document.prototype || 'adoptedStyleSheets' in ShadowRoot.prototype) {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(cssText);
+        shadow.adoptedStyleSheets = (shadow.adoptedStyleSheets || []).concat(sheet);
+        return;
+      }
+    } catch (_) { /* fall through */ }
+
+    // Fallback: inline <style>
+    if (cssText) {
+      try {
+        const style = document.createElement('style');
+        style.textContent = cssText;
+        shadow.appendChild(style);
+        return;
+      } catch (_) { /* fall through */ }
     }
+
+    // Last resort: linked stylesheet (may be blocked by CSP)
+    try {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = url;
+      shadow.appendChild(link);
+    } catch (_) { /* give up */ }
   })();
 
   // Elements (inside shadow)
@@ -81,6 +106,15 @@
   actionBubble.style.position = 'fixed';
   actionBubble.style.display = 'none';
   actionBubble.style.pointerEvents = 'auto'; // re-enable for bubble
+  // Inline base styles to guarantee capsule even if CSS fails to load
+  actionBubble.style.background = '#f0ffff';
+  actionBubble.style.color = '#000';
+  actionBubble.style.padding = '6px 10px';
+  actionBubble.style.borderRadius = '9999px';
+  actionBubble.style.border = '1px solid #f0ffff';
+  actionBubble.style.boxShadow = '0 6px 16px rgba(0,0,0,0.25)';
+  actionBubble.style.alignItems = 'center';
+  actionBubble.style.gap = '8px';
 
   const translationBubble = document.createElement('div');
   translationBubble.className = 'qst-translation-bubble';
@@ -94,13 +128,36 @@
   // Build action bubble content
   const countEl = document.createElement('span');
   countEl.className = 'qst-count';
+  // Inline fallback
+  countEl.style.color = '#000';
+  countEl.style.fontSize = '12px';
+  countEl.style.fontWeight = '500';
 
   const translateBtn = document.createElement('button');
-  translateBtn.className = 'qst-btn';
+  translateBtn.className = 'qst-btn qst-badge';
   translateBtn.type = 'button';
-  translateBtn.title = '翻訳 (日本語)';
-  translateBtn.setAttribute('aria-label', '翻訳 (日本語)');
-  translateBtn.textContent = '🌐';
+  translateBtn.title = 'Google翻訳';
+  translateBtn.setAttribute('aria-label', 'Translate to Japanese');
+  translateBtn.setAttribute('role', 'button');
+  translateBtn.textContent = 'A⇄あ';
+  // Inline fallback to avoid native button look
+  Object.assign(translateBtn.style, {
+    minWidth: '24px',
+    minHeight: '24px',
+    padding: '2px 8px',
+    border: 'none',
+    borderRadius: '4px',
+    margin: '0',
+    background: 'transparent',
+    color: 'inherit',
+    fontSize: '14px',
+    fontWeight: '600',
+    lineHeight: '20px',
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    boxShadow: 'none',
+    cursor: 'pointer',
+  });
 
   const searchBtn = document.createElement('button');
   searchBtn.className = 'qst-btn';
@@ -108,9 +165,48 @@
   searchBtn.title = 'Google検索';
   searchBtn.setAttribute('aria-label', 'Google検索');
   searchBtn.textContent = '🔎';
+  Object.assign(searchBtn.style, {
+    minWidth: '24px',
+    minHeight: '24px',
+    padding: '2px 8px',
+    border: 'none',
+    borderRadius: '4px',
+    margin: '0',
+    background: 'transparent',
+    color: 'inherit',
+    fontSize: '16px',
+    lineHeight: '20px',
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    boxShadow: 'none',
+    cursor: 'pointer',
+  });
 
+  const sep1 = document.createElement('span');
+  sep1.className = 'qst-sep';
+  // Inline fallback styles so separator is visible even if CSS fails
+  Object.assign(sep1.style, {
+    width: '1px',
+    alignSelf: 'stretch',
+    margin: '4px 4px',
+    background: '#4682b4',
+    borderRadius: '1px',
+    display: 'block'
+  });
+  const sep2 = document.createElement('span');
+  sep2.className = 'qst-sep';
+  Object.assign(sep2.style, {
+    width: '1px',
+    alignSelf: 'stretch',
+    margin: '4px 4px',
+    background: '#4682b4',
+    borderRadius: '1px',
+    display: 'block'
+  });
   actionBubble.appendChild(countEl);
+  actionBubble.appendChild(sep1);
   actionBubble.appendChild(translateBtn);
+  actionBubble.appendChild(sep2);
   actionBubble.appendChild(searchBtn);
 
   // Build translation bubble structure
@@ -146,7 +242,7 @@
   // Utility to show/hide action bubble at a screen position
   const showActionBubble = (x, y, text) => {
     const len = codePointLength(text);
-    countEl.textContent = len > 5000 ? '5,000+' : String(len);
+    countEl.textContent = len > 5000 ? '5000+字' : `${len}字`;
     // Position with small offset; clamp into viewport
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -324,7 +420,7 @@
   };
 
   // Actions
-  translateBtn.addEventListener('click', async (e) => {
+  const activateTranslate = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -366,6 +462,15 @@
       openGoogleTranslate(text);
       hideActionBubble();
     }
+  };
+
+  translateBtn.addEventListener('click', activateTranslate);
+  translateBtn.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' || ev.key === ' ') {
+      // Ensure Space doesn't scroll
+      ev.preventDefault();
+      activateTranslate(ev);
+    }
   });
 
   searchBtn.addEventListener('click', (e) => {
@@ -380,4 +485,3 @@
     hideActionBubble();
   });
 })();
-
