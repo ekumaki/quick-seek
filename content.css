@@ -7,7 +7,7 @@
 .qst-action-bubble {
   display: flex;
   align-items: center;
-  gap: 8px; /* ~8px between items */
+  gap: 4px; /* tighter spacing between items */
   background: #f0ffff; /* requested container background */
   color: #000; /* default text color black */
   padding: 6px 10px;
@@ -16,6 +16,7 @@
   box-shadow: 0 6px 16px rgba(0,0,0,0.25);
   overflow: hidden; /* ensure fully encapsulated look */
   box-sizing: border-box;
+  white-space: nowrap; /* prevent wrapping, even for 5000+字 */
   user-select: none;
   -webkit-user-select: none;
   font: 13px/1.2 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
@@ -49,7 +50,7 @@
 
 /* Translate badge “A⇄あ” inside the capsule */
 .qst-badge {
-  font-weight: 600; /* medium weight */
+  font-weight: 400; /* not bold */
   font-size: 14px;
   color: #000; /* black */
 }
@@ -59,9 +60,16 @@
   width: 1px;
   background: #4682b4;
   align-self: stretch; /* fill cross-size of capsule */
-  margin: 4px 4px; /* small top/bottom gaps + slight horizontal space */
+  margin: 4px 2px; /* default spacing */
   border-radius: 1px;
 }
+
+/* Pair-specific spacing so that 文字数↔区切り線は現状維持、A⇄あ↔区切り線はタイトに */
+.qst-sep1 { margin-left: 2px; margin-right: 0; }
+.qst-sep2 { margin-left: 0; margin-right: 0; }
+
+/* Keep search icon symmetric but tighter padding */
+.qst-action-bubble > .qst-btn:last-child { padding-left: 3px; padding-right: 3px; }
 
 .qst-translation-bubble {
   width: min(720px, 92vw);

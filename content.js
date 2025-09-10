@@ -114,7 +114,8 @@
   actionBubble.style.border = '1px solid #f0ffff';
   actionBubble.style.boxShadow = '0 6px 16px rgba(0,0,0,0.25)';
   actionBubble.style.alignItems = 'center';
-  actionBubble.style.gap = '8px';
+  actionBubble.style.gap = '4px';
+  actionBubble.style.whiteSpace = 'nowrap';
 
   const translationBubble = document.createElement('div');
   translationBubble.className = 'qst-translation-bubble';
@@ -151,7 +152,7 @@
     background: 'transparent',
     color: 'inherit',
     fontSize: '14px',
-    fontWeight: '600',
+    fontWeight: '400',
     lineHeight: '20px',
     appearance: 'none',
     WebkitAppearance: 'none',
@@ -168,7 +169,7 @@
   Object.assign(searchBtn.style, {
     minWidth: '24px',
     minHeight: '24px',
-    padding: '2px 8px',
+    padding: '2px 3px',
     border: 'none',
     borderRadius: '4px',
     margin: '0',
@@ -183,22 +184,28 @@
   });
 
   const sep1 = document.createElement('span');
-  sep1.className = 'qst-sep';
+  sep1.className = 'qst-sep qst-sep1';
   // Inline fallback styles so separator is visible even if CSS fails
   Object.assign(sep1.style, {
     width: '1px',
     alignSelf: 'stretch',
-    margin: '4px 4px',
+    marginTop: '4px',
+    marginBottom: '4px',
+    marginLeft: '2px',
+    marginRight: '0px',
     background: '#4682b4',
     borderRadius: '1px',
     display: 'block'
   });
   const sep2 = document.createElement('span');
-  sep2.className = 'qst-sep';
+  sep2.className = 'qst-sep qst-sep2';
   Object.assign(sep2.style, {
     width: '1px',
     alignSelf: 'stretch',
-    margin: '4px 4px',
+    marginTop: '4px',
+    marginBottom: '4px',
+    marginLeft: '0px',
+    marginRight: '0px',
     background: '#4682b4',
     borderRadius: '1px',
     display: 'block'
