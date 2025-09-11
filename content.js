@@ -43,30 +43,31 @@
 
   const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
 
-  // Safe style applier to avoid crashes on sites that tamper with elements or CSS APIs
+  // Safe style applier. When SAFE_INLINE_FALLBACK is false, make it a no-op
   const cssProp = (k) => k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
-  const applyStyle = (el, props) => {
-    if (!el || !props) return;
-    if (!SAFE_INLINE_FALLBACK) return;
-    // Prefer style attribute application to avoid interacting with hostile `el.style` proxies
-    try {
-      const existing = (el.getAttribute && el.getAttribute('style')) || '';
-      const add = Object.entries(props).map(([k,v]) => `${cssProp(k)}:${String(v)}`).join(';');
-      if (el.setAttribute) {
-        el.setAttribute('style', existing ? `${existing};${add}` : add);
-        return;
-      }
-    } catch (_) { /* fall through */ }
-    // Last resort: try CSSStyleDeclaration.setProperty only
-    try {
-      const s = (() => { try { return el && el.style; } catch (_) { return null; } })();
-      if (s && typeof s.setProperty === 'function') {
-        for (const [k, v] of Object.entries(props)) {
-          try { s.setProperty(cssProp(k), String(v)); } catch (_) {}
+  const applyStyle = SAFE_INLINE_FALLBACK ? (function() {
+    return (el, props) => {
+      if (!el || !props) return;
+      // Prefer style attribute application to avoid interacting with hostile `el.style` proxies
+      try {
+        const existing = (el.getAttribute && el.getAttribute('style')) || '';
+        const add = Object.entries(props).map(([k,v]) => `${cssProp(k)}:${String(v)}`).join(';');
+        if (el.setAttribute) {
+          el.setAttribute('style', existing ? `${existing};${add}` : add);
+          return;
         }
-      }
-    } catch (_) { /* ignore */ }
-  };
+      } catch (_) { /* fall through */ }
+      // Last resort: try CSSStyleDeclaration.setProperty only
+      try {
+        const s = (() => { try { return el && el.style; } catch (_) { return null; } })();
+        if (s && typeof s.setProperty === 'function') {
+          for (const [k, v] of Object.entries(props)) {
+            try { s.setProperty(cssProp(k), String(v)); } catch (_) {}
+          }
+        }
+      } catch (_) { /* ignore */ }
+    };
+  })() : (() => {});
 
   const getDisplay = (el) => {
     try {
@@ -109,16 +110,16 @@
 
     host.id = HOST_ID;
     // fixed zero-size host; children use position:fixed
+    // Do not touch style attributes directly; inject a document-level style instead
     try {
-      if (typeof applyStyle === 'function') {
-        applyStyle(host, { position: 'fixed', zIndex: '2147483646', top: '0', left: '0', width: '0', height: '0', pointerEvents: 'none' });
-      } else {
-        host.setAttribute('style', 'position:fixed;z-index:2147483646;top:0;left:0;width:0;height:0;pointer-events:none;');
+      const STY_ID = 'qst-host-css';
+      if (!document.getElementById(STY_ID)) {
+        const sty = document.createElement('style');
+        sty.id = STY_ID;
+        sty.textContent = '#qst-root-host{position:fixed;z-index:2147483646;top:0;left:0;width:0;height:0;pointer-events:none;}';
+        (document.head || document.documentElement).appendChild(sty);
       }
-    } catch (_) {
-      // Fallback to attribute if direct style access failed
-      try { host.setAttribute('style', 'position:fixed;z-index:2147483646;top:0;left:0;width:0;height:0;pointer-events:none;'); } catch (_) {}
-    }
+    } catch (_) { /* ignore */ }
 
     const root = document.documentElement || document.body || document.head;
     try { if (root && root.appendChild) root.appendChild(host); } catch (_) { return; }
