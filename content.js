@@ -46,9 +46,11 @@
   const applyStyle = (el, props) => {
     if (!el || !props) return;
     try {
-      if (el.style && typeof el.style.setProperty === 'function') {
+      // Capture a stable reference; some sites define a getter that may change per access
+      const s = (() => { try { return el && el.style; } catch (_) { return null; } })();
+      if (s && typeof s.setProperty === 'function') {
         for (const [k, v] of Object.entries(props)) {
-          try { el.style[k] = v; } catch (_) { try { el.style.setProperty(cssProp(k), String(v)); } catch (_) {} }
+          try { s[k] = v; } catch (_) { try { s.setProperty(cssProp(k), String(v)); } catch (_) {} }
         }
         return;
       }
@@ -58,6 +60,24 @@
       const add = Object.entries(props).map(([k,v]) => `${cssProp(k)}:${String(v)}`).join(';');
       if (el.setAttribute) el.setAttribute('style', existing ? `${existing};${add}` : add);
     } catch (_) { /* ignore */ }
+  };
+
+  const getDisplay = (el) => {
+    try {
+      const cs = (typeof getComputedStyle === 'function') ? getComputedStyle(el) : null;
+      if (cs && typeof cs.display === 'string') return cs.display;
+    } catch (_) {}
+    try {
+      if (el && el.style && typeof el.style.display === 'string' && el.style.display) return el.style.display;
+    } catch (_) {}
+    try {
+      const s = el && el.getAttribute && el.getAttribute('style');
+      if (s) {
+        const m = /display\s*:\s*([^;]+)/i.exec(s);
+        if (m) return m[1].trim();
+      }
+    } catch (_) {}
+    return '';
   };
 
   // Selected text state we keep in-memory only (privacy)
@@ -84,15 +104,8 @@
     host.id = HOST_ID;
     // fixed zero-size host; children use position:fixed
     try {
-      if (host.style) {
-        host.style.position = 'fixed';
-        host.style.zIndex = '2147483646';
-        host.style.top = '0';
-        host.style.left = '0';
-        host.style.width = '0';
-        host.style.height = '0';
-        // Make sure host never interferes with page layout
-        host.style.pointerEvents = 'none';
+      if (typeof applyStyle === 'function') {
+        applyStyle(host, { position: 'fixed', zIndex: '2147483646', top: '0', left: '0', width: '0', height: '0', pointerEvents: 'none' });
       } else {
         host.setAttribute('style', 'position:fixed;z-index:2147483646;top:0;left:0;width:0;height:0;pointer-events:none;');
       }
@@ -304,27 +317,22 @@
     const approxH = 40;  // rough height
     const bx = clamp(x + 8, pad, vw - approxW - pad);
     const by = clamp(y + 8, pad, vh - approxH - pad);
-    actionBubble.style.left = `${bx}px`;
-    actionBubble.style.top = `${by}px`;
-    actionBubble.style.display = 'flex';
+    applyStyle(actionBubble, { left: `${bx}px`, top: `${by}px`, display: 'flex' });
   };
   const hideActionBubble = () => {
-    actionBubble.style.display = 'none';
+    applyStyle(actionBubble, { display: 'none' });
   };
 
   // Translation bubble control
   const openTranslationBubble = () => {
-    translationBubble.style.left = '50%';
-    translationBubble.style.top = '12px';
-    translationBubble.style.transform = 'translateX(-50%)';
-    translationBubble.style.display = 'block';
-    tbLoading.style.display = 'flex';
+    applyStyle(translationBubble, { left: '50%', top: '12px', transform: 'translateX(-50%)', display: 'block' });
+    applyStyle(tbLoading, { display: 'flex' });
     tbText.textContent = '';
   };
   const closeTranslationBubble = () => {
-    translationBubble.style.display = 'none';
+    applyStyle(translationBubble, { display: 'none' });
     tbText.textContent = '';
-    tbLoading.style.display = 'none';
+    applyStyle(tbLoading, { display: 'none' });
   };
 
   tbClose.addEventListener('click', (e) => {
@@ -337,7 +345,7 @@
     const path = ev.composedPath ? ev.composedPath() : [];
     if (!path.includes(actionBubble) && !path.includes(translationBubble)) {
       hideActionBubble();
-      if (translationBubble.style.display !== 'none') closeTranslationBubble();
+      if (getDisplay(translationBubble) !== 'none') closeTranslationBubble();
     }
   };
   document.addEventListener('mousedown', onDocMouseDown, true);
@@ -494,7 +502,7 @@
     // Inline translation path (only when feature is enabled and API is available)
     if (inlineAllowed) {
       openTranslationBubble();
-      tbLoading.style.display = 'flex';
+      applyStyle(tbLoading, { display: 'flex' });
       tbText.textContent = '';
       hideActionBubble();
       try {
@@ -508,7 +516,7 @@
         closeTranslationBubble();
         openGoogleTranslate(text);
       } finally {
-        tbLoading.style.display = 'none';
+        applyStyle(tbLoading, { display: 'none' });
       }
     }
   };
