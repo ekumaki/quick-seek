@@ -45,20 +45,23 @@
   const cssProp = (k) => k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
   const applyStyle = (el, props) => {
     if (!el || !props) return;
-    try {
-      // Capture a stable reference; some sites define a getter that may change per access
-      const s = (() => { try { return el && el.style; } catch (_) { return null; } })();
-      if (s && typeof s.setProperty === 'function') {
-        for (const [k, v] of Object.entries(props)) {
-          try { s[k] = v; } catch (_) { try { s.setProperty(cssProp(k), String(v)); } catch (_) {} }
-        }
-        return;
-      }
-    } catch (_) { /* fall through to attribute */ }
+    // Prefer style attribute application to avoid interacting with hostile `el.style` proxies
     try {
       const existing = (el.getAttribute && el.getAttribute('style')) || '';
       const add = Object.entries(props).map(([k,v]) => `${cssProp(k)}:${String(v)}`).join(';');
-      if (el.setAttribute) el.setAttribute('style', existing ? `${existing};${add}` : add);
+      if (el.setAttribute) {
+        el.setAttribute('style', existing ? `${existing};${add}` : add);
+        return;
+      }
+    } catch (_) { /* fall through */ }
+    // Last resort: try CSSStyleDeclaration.setProperty only
+    try {
+      const s = (() => { try { return el && el.style; } catch (_) { return null; } })();
+      if (s && typeof s.setProperty === 'function') {
+        for (const [k, v] of Object.entries(props)) {
+          try { s.setProperty(cssProp(k), String(v)); } catch (_) {}
+        }
+      }
     } catch (_) { /* ignore */ }
   };
 
