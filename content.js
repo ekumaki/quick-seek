@@ -7,6 +7,11 @@
 (() => {
   'use strict';
 
+  // Feature flags
+  // If true and the on-device Translator API is available, show the inline translation bubble at the top.
+  // If false (default), always open Google Translate in a new tab.
+  const ENABLE_INLINE_TRANSLATION = false;
+
   // Guard: do nothing on restricted pages (defensive; Chrome also blocks content_scripts there)
   const isRestrictedPage = () => {
     const p = location.protocol;
@@ -436,17 +441,17 @@
       hideActionBubble();
       return;
     }
-
-    const cross = isCrossOriginFrame();
-    if (cross) {
-      // Fallback for cross-origin iframes
+    // Decide whether inline translation is allowed (feature-flagged and environment-supported)
+    const inlineAllowed = ENABLE_INLINE_TRANSLATION && !isCrossOriginFrame() && hasOnDeviceTranslator();
+    if (!inlineAllowed) {
+      // Unified behavior: open Google Translate in a new tab
       openGoogleTranslate(text);
       hideActionBubble();
       return;
     }
 
-    // Try on-device translator
-    if (hasOnDeviceTranslator()) {
+    // Inline translation path (only when feature is enabled and API is available)
+    if (inlineAllowed) {
       openTranslationBubble();
       tbLoading.style.display = 'flex';
       tbText.textContent = '';
@@ -464,10 +469,6 @@
       } finally {
         tbLoading.style.display = 'none';
       }
-    } else {
-      // No API: fallback
-      openGoogleTranslate(text);
-      hideActionBubble();
     }
   };
 
