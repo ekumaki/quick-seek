@@ -43,49 +43,11 @@
 
   const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
 
-  // Safe style applier. When SAFE_INLINE_FALLBACK is false, make it a no-op
-  const cssProp = (k) => k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
-  const applyStyle = SAFE_INLINE_FALLBACK ? (function() {
-    return (el, props) => {
-      if (!el || !props) return;
-      // Prefer style attribute application to avoid interacting with hostile `el.style` proxies
-      try {
-        const existing = (el.getAttribute && el.getAttribute('style')) || '';
-        const add = Object.entries(props).map(([k,v]) => `${cssProp(k)}:${String(v)}`).join(';');
-        if (el.setAttribute) {
-          el.setAttribute('style', existing ? `${existing};${add}` : add);
-          return;
-        }
-      } catch (_) { /* fall through */ }
-      // Last resort: try CSSStyleDeclaration.setProperty only
-      try {
-        const s = (() => { try { return el && el.style; } catch (_) { return null; } })();
-        if (s && typeof s.setProperty === 'function') {
-          for (const [k, v] of Object.entries(props)) {
-            try { s.setProperty(cssProp(k), String(v)); } catch (_) {}
-          }
-        }
-      } catch (_) { /* ignore */ }
-    };
-  })() : (() => {});
+  // Safe style applier: hard no-op (never touches el.style nor attributes)
+  const cssProp = (k) => k; // unused, keep for compatibility
+  const applyStyle = () => {};
 
-  const getDisplay = (el) => {
-    try {
-      const cs = (typeof getComputedStyle === 'function') ? getComputedStyle(el) : null;
-      if (cs && typeof cs.display === 'string') return cs.display;
-    } catch (_) {}
-    try {
-      if (el && el.style && typeof el.style.display === 'string' && el.style.display) return el.style.display;
-    } catch (_) {}
-    try {
-      const s = el && el.getAttribute && el.getAttribute('style');
-      if (s) {
-        const m = /display\s*:\s*([^;]+)/i.exec(s);
-        if (m) return m[1].trim();
-      }
-    } catch (_) {}
-    return '';
-  };
+  const getDisplay = () => '';
 
   // Selected text state we keep in-memory only (privacy)
   let lastSelection = {
