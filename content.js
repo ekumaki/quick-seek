@@ -52,20 +52,40 @@
   const HOST_ID = 'qst-root-host';
   let host = document.getElementById(HOST_ID);
   if (!host) {
-    host = document.createElement('div');
+    // Create with extra safety against sites that monkey‑patch DOM APIs
+    try {
+      host = document.createElement('div');
+    } catch (_) {
+      try {
+        host = document.createElementNS('http://www.w3.org/1999/xhtml', 'div');
+      } catch (_) { /* ignore */ }
+    }
+    if (!host) return; // As a last resort, bail out silently
+
     host.id = HOST_ID;
     // fixed zero-size host; children use position:fixed
-    host.style.position = 'fixed';
-    host.style.zIndex = '2147483646';
-    host.style.top = '0';
-    host.style.left = '0';
-    host.style.width = '0';
-    host.style.height = '0';
-    // Make sure host never interferes with page layout
-    host.style.pointerEvents = 'none';
-    document.documentElement.appendChild(host);
+    try {
+      if (host.style) {
+        host.style.position = 'fixed';
+        host.style.zIndex = '2147483646';
+        host.style.top = '0';
+        host.style.left = '0';
+        host.style.width = '0';
+        host.style.height = '0';
+        // Make sure host never interferes with page layout
+        host.style.pointerEvents = 'none';
+      } else {
+        host.setAttribute('style', 'position:fixed;z-index:2147483646;top:0;left:0;width:0;height:0;pointer-events:none;');
+      }
+    } catch (_) {
+      // Fallback to attribute if direct style access failed
+      try { host.setAttribute('style', 'position:fixed;z-index:2147483646;top:0;left:0;width:0;height:0;pointer-events:none;'); } catch (_) {}
+    }
+
+    const root = document.documentElement || document.body || document.head;
+    try { if (root && root.appendChild) root.appendChild(host); } catch (_) { return; }
   }
-  const shadow = host.attachShadow({ mode: 'open' });
+  const shadow = (host && typeof host.attachShadow === 'function') ? host.attachShadow({ mode: 'open' }) : host;
 
   // Load styles into Shadow DOM (robust against page CSP):
   // 1) adoptedStyleSheets (preferred), 2) <style> with text, 3) <link rel="stylesheet"> as last resort.
