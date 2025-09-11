@@ -41,6 +41,25 @@
 
   const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
 
+  // Safe style applier to avoid crashes on sites that tamper with elements or CSS APIs
+  const cssProp = (k) => k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
+  const applyStyle = (el, props) => {
+    if (!el || !props) return;
+    try {
+      if (el.style && typeof el.style.setProperty === 'function') {
+        for (const [k, v] of Object.entries(props)) {
+          try { el.style[k] = v; } catch (_) { try { el.style.setProperty(cssProp(k), String(v)); } catch (_) {} }
+        }
+        return;
+      }
+    } catch (_) { /* fall through to attribute */ }
+    try {
+      const existing = (el.getAttribute && el.getAttribute('style')) || '';
+      const add = Object.entries(props).map(([k,v]) => `${cssProp(k)}:${String(v)}`).join(';');
+      if (el.setAttribute) el.setAttribute('style', existing ? `${existing};${add}` : add);
+    } catch (_) { /* ignore */ }
+  };
+
   // Selected text state we keep in-memory only (privacy)
   let lastSelection = {
     text: '',
@@ -128,25 +147,29 @@
   // Elements (inside shadow)
   const actionBubble = document.createElement('div');
   actionBubble.className = 'qst-action-bubble';
-  actionBubble.style.position = 'fixed';
-  actionBubble.style.display = 'none';
-  actionBubble.style.pointerEvents = 'auto'; // re-enable for bubble
-  // Inline base styles to guarantee capsule even if CSS fails to load
-  actionBubble.style.background = '#f0ffff';
-  actionBubble.style.color = '#000';
-  actionBubble.style.padding = '6px 10px';
-  actionBubble.style.borderRadius = '9999px';
-  actionBubble.style.border = '1px solid #f0ffff';
-  actionBubble.style.boxShadow = '0 6px 16px rgba(0,0,0,0.25)';
-  actionBubble.style.alignItems = 'center';
-  actionBubble.style.gap = '4px';
-  actionBubble.style.whiteSpace = 'nowrap';
+  applyStyle(actionBubble, {
+    position: 'fixed',
+    display: 'none',
+    pointerEvents: 'auto', // re-enable for bubble
+    // Inline base styles to guarantee capsule even if CSS fails to load
+    background: '#f0ffff',
+    color: '#000',
+    padding: '6px 10px',
+    borderRadius: '9999px',
+    border: '1px solid #f0ffff',
+    boxShadow: '0 6px 16px rgba(0,0,0,0.25)',
+    alignItems: 'center',
+    gap: '4px',
+    whiteSpace: 'nowrap',
+  });
 
   const translationBubble = document.createElement('div');
   translationBubble.className = 'qst-translation-bubble';
-  translationBubble.style.position = 'fixed';
-  translationBubble.style.display = 'none';
-  translationBubble.style.pointerEvents = 'auto';
+  applyStyle(translationBubble, {
+    position: 'fixed',
+    display: 'none',
+    pointerEvents: 'auto',
+  });
 
   shadow.appendChild(actionBubble);
   shadow.appendChild(translationBubble);
@@ -155,9 +178,7 @@
   const countEl = document.createElement('span');
   countEl.className = 'qst-count';
   // Inline fallback
-  countEl.style.color = '#000';
-  countEl.style.fontSize = '12px';
-  countEl.style.fontWeight = '500';
+  applyStyle(countEl, { color: '#000', fontSize: '12px', fontWeight: '500' });
 
   const translateBtn = document.createElement('button');
   translateBtn.className = 'qst-btn qst-badge';
@@ -167,7 +188,7 @@
   translateBtn.setAttribute('role', 'button');
   translateBtn.textContent = 'A⇄あ';
   // Inline fallback to avoid native button look
-  Object.assign(translateBtn.style, {
+  applyStyle(translateBtn, {
     minWidth: '24px',
     minHeight: '24px',
     padding: '2px 8px',
@@ -191,7 +212,7 @@
   searchBtn.title = 'Google検索';
   searchBtn.setAttribute('aria-label', 'Google検索');
   searchBtn.textContent = '🔎';
-  Object.assign(searchBtn.style, {
+  applyStyle(searchBtn, {
     minWidth: '24px',
     minHeight: '24px',
     padding: '2px 3px',
@@ -211,7 +232,7 @@
   const sep1 = document.createElement('span');
   sep1.className = 'qst-sep qst-sep1';
   // Inline fallback styles so separator is visible even if CSS fails
-  Object.assign(sep1.style, {
+  applyStyle(sep1, {
     width: '1px',
     alignSelf: 'stretch',
     marginTop: '4px',
@@ -224,7 +245,7 @@
   });
   const sep2 = document.createElement('span');
   sep2.className = 'qst-sep qst-sep2';
-  Object.assign(sep2.style, {
+  applyStyle(sep2, {
     width: '1px',
     alignSelf: 'stretch',
     marginTop: '4px',
