@@ -11,6 +11,8 @@
   // If true and the on-device Translator API is available, show the inline translation bubble at the top.
   // If false (default), always open Google Translate in a new tab.
   const ENABLE_INLINE_TRANSLATION = false;
+  // Disable any inline-style fallback writes to avoid hostile site patches
+  const SAFE_INLINE_FALLBACK = false;
 
   // Guard: do nothing on restricted pages (defensive; Chrome also blocks content_scripts there)
   const isRestrictedPage = () => {
@@ -45,6 +47,7 @@
   const cssProp = (k) => k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
   const applyStyle = (el, props) => {
     if (!el || !props) return;
+    if (!SAFE_INLINE_FALLBACK) return;
     // Prefer style attribute application to avoid interacting with hostile `el.style` proxies
     try {
       const existing = (el.getAttribute && el.getAttribute('style')) || '';
@@ -190,6 +193,23 @@
   shadow.appendChild(actionBubble);
   shadow.appendChild(translationBubble);
 
+  // Dynamic CSS inside shadow to avoid touching element.style or @style attributes
+  const dynStyle = document.createElement('style');
+  shadow.appendChild(dynStyle);
+  const dyn = {
+    action: { left: '0px', top: '0px', display: 'none' },
+    tb: { left: '50%', top: '12px', transform: 'translateX(-50%)', display: 'none' },
+    loadingDisplay: 'none'
+  };
+  const refreshDyn = () => {
+    dynStyle.textContent = `
+      .qst-action-bubble{position:fixed;pointer-events:auto;left:${dyn.action.left};top:${dyn.action.top};display:${dyn.action.display};}
+      .qst-translation-bubble{position:fixed;left:${dyn.tb.left};top:${dyn.tb.top};transform:${dyn.tb.transform};display:${dyn.tb.display};}
+      .qst-tb-loading{display:${dyn.loadingDisplay};}
+    `;
+  };
+  refreshDyn();
+
   // Build action bubble content
   const countEl = document.createElement('span');
   countEl.className = 'qst-count';
@@ -320,22 +340,31 @@
     const approxH = 40;  // rough height
     const bx = clamp(x + 8, pad, vw - approxW - pad);
     const by = clamp(y + 8, pad, vh - approxH - pad);
-    applyStyle(actionBubble, { left: `${bx}px`, top: `${by}px`, display: 'flex' });
+    dyn.action.left = `${bx}px`;
+    dyn.action.top = `${by}px`;
+    dyn.action.display = 'flex';
+    refreshDyn();
   };
   const hideActionBubble = () => {
-    applyStyle(actionBubble, { display: 'none' });
+    dyn.action.display = 'none';
+    refreshDyn();
   };
 
   // Translation bubble control
   const openTranslationBubble = () => {
-    applyStyle(translationBubble, { left: '50%', top: '12px', transform: 'translateX(-50%)', display: 'block' });
-    applyStyle(tbLoading, { display: 'flex' });
+    dyn.tb.left = '50%';
+    dyn.tb.top = '12px';
+    dyn.tb.transform = 'translateX(-50%)';
+    dyn.tb.display = 'block';
+    dyn.loadingDisplay = 'flex';
+    refreshDyn();
     tbText.textContent = '';
   };
   const closeTranslationBubble = () => {
-    applyStyle(translationBubble, { display: 'none' });
+    dyn.tb.display = 'none';
     tbText.textContent = '';
-    applyStyle(tbLoading, { display: 'none' });
+    dyn.loadingDisplay = 'none';
+    refreshDyn();
   };
 
   tbClose.addEventListener('click', (e) => {
