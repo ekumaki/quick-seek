@@ -166,9 +166,34 @@
   };
   const refreshDyn = () => {
     dynStyle.textContent = `
+      /* Dynamic positioning/visibility */
       .qst-action-bubble{position:fixed;pointer-events:auto;left:${dyn.action.left};top:${dyn.action.top};display:${dyn.action.display};}
       .qst-translation-bubble{position:fixed;left:${dyn.tb.left};top:${dyn.tb.top};transform:${dyn.tb.transform};display:${dyn.tb.display};}
       .qst-tb-loading{display:${dyn.loadingDisplay};}
+
+      /* Minimal visual fallback to guarantee capsule look (safe, no inline styles) */
+      .qst-action-bubble{
+        background:#f0ffff;color:#000;padding:6px 10px;border-radius:9999px;border:1px solid #f0ffff;
+        box-shadow:0 6px 16px rgba(0,0,0,0.25);align-items:center;gap:4px;white-space:nowrap;
+        font:13px/1.2 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      }
+      .qst-count{color:#000;font-size:12px;font-weight:500}
+      .qst-btn{
+        min-width:24px;min-height:24px;padding:2px 8px;border:none;border-radius:4px;margin:0;background:transparent;
+        color:inherit;font-size:14px;line-height:20px;cursor:pointer;appearance:none;-webkit-appearance:none;box-shadow:none;
+      }
+      .qst-sep{width:1px;background:#4682b4;align-self:stretch;margin:4px 2px;border-radius:1px}
+      .qst-sep1{margin-left:2px;margin-right:0}
+      .qst-sep2{margin-left:0;margin-right:0}
+      .qst-action-bubble > .qst-btn:last-child{padding-left:3px;padding-right:3px}
+
+      /* Minimal translation bubble fallback (only used if inline enabled) */
+      .qst-translation-bubble{width:min(720px,92vw);background:#1c1c1e;color:#f5f5f7;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,0.4);overflow:hidden}
+      .qst-tb-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#2c2c2e;border-bottom:1px solid rgba(255,255,255,0.06)}
+      .qst-tb-title{font:600 13px/1.2 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#e5e5ea}
+      .qst-tb-close{width:28px;height:28px;border:none;border-radius:6px;background:rgba(255,255,255,0.1);color:#fff;cursor:pointer;font-size:18px;line-height:28px}
+      .qst-tb-body{padding:12px}
+      .qst-tb-text{white-space:pre-wrap;word-wrap:break-word;font:14px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#f5f5f7}
     `;
   };
   refreshDyn();
